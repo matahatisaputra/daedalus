@@ -129,8 +129,11 @@ statusFor' CardanoSource{..} = do
   statusesFor auth srcOwner srcRepo srcRev
 
 authFromEnv :: IO GH.Auth
-authFromEnv = maybe noAuth (OAuth . S8.pack) <$> lookupEnv "GITHUB_OAUTH_TOKEN"
-  where noAuth = BasicAuth "" ""
+authFromEnv = lookupEnv "GITHUB_OAUTH_TOKEN" >>= \case
+  Just token -> pure $ OAuth $ S8.pack token
+  Nothing -> do
+    printf "GITHUB_OAUTH_TOKEN is not set. GitHub status API call may fail.\n"
+    pure $ BasicAuth "" ""
 
 data JobStatus = JobSuccess | JobFailed | JobRunning
                | JobUnknown Text deriving (Show, Eq, Generic)
