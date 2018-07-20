@@ -83,6 +83,9 @@ let
         inherit (pkgs.darwin) binutils;
       };
       macOSPackage = localLib.wrapPackage buildNum self.macOSPackage';
+
+      # Windows installer
+      windowsInstaller = self.callPackage ./installers/windows.nix {};
     };
   in self.overrideScope packages));
 

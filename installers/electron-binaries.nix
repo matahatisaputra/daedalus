@@ -18,6 +18,10 @@ let
       platform = "darwin-x64";
       sha256 = "1xx6vssl95894kk4qwjp158ax5by72b0gsj21kw9djrndlldpzi5";
     };
+    x86_64-mingw = fetchElectron {
+      platform = "win32-x64";
+      sha256 = "1xx7vssl95894kk4qwjp158ax5by72b0gsj21kw9djrndlldpzi5";
+    };
   };
 
 in

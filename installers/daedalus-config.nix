@@ -4,6 +4,7 @@ let
   systemOS = {
     x86_64-linux = "linux64";
     x86_64-darwin = "macos64";
+    x86_64-mingw = "win64";  # fixme: correct?
   };
   os = systemOS.${system};
 

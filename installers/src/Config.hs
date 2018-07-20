@@ -12,7 +12,7 @@ module Config
   , forConfigValues
   , OS(..), Cluster(..), Config(..), Backend(..)
   , optReadLower, argReadLower
-  , Options(..), optionsParser
+  , Options(..), optionsParser, clusterParser
   , GenerateCardanoLauncher(..), generateCardanoLauncherParser
   , dfp
   , getInstallerConfig

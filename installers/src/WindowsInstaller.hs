@@ -1,5 +1,10 @@
 module WindowsInstaller
-    ( makeWindowsInstaller
+    ( windowsInstallerMain
+    , WindowsInstaller(..)
+    , MakeNSI(..)
+    , BuildInstaller(..)
+    , makeWindowsInstaller
+    , makeNullsoftScripts
     , writeInstallerNSIS
     ) where
 
@@ -7,7 +12,6 @@ import           Universum hiding (pass, writeFile, stdout, FilePath, die)
 
 import           Control.Monad (unless)
 import qualified Data.List as L
-import           Data.Text (Text)
 import qualified Data.Text as T
 import           Development.NSIS (Attrib (IconFile, IconIndex, RebootOK, Recursive, Required, StartOptions, Target),
                                    HKEY (HKLM), Level (Highest), Page (Directory, InstFiles), abort,
@@ -22,14 +26,28 @@ import qualified System.IO as IO
 import           Filesystem.Path.CurrentOS (encodeString, fromText)
 import qualified Filesystem.Path.Rules as FP
 import           Turtle hiding ((<>), rmdir, toText)
-import           AppVeyor
-import qualified Codec.Archive.Zip    as Zip
 
 import           Config
 import           Types
-import           Util
 
+data WindowsInstaller = MakeNSI MakeNSI | BuildInstaller BuildInstaller
+  deriving Show
 
+data MakeNSI = MakeNSIOptions
+  { nsiOutDir            :: FilePath
+  , nsiDhallDir          :: FilePath
+  , nsiInstallerFilename :: FilePath
+  , nsiFullVersion       :: Version
+  , nsiNetwork           :: Cluster
+  } deriving Show
+
+data BuildInstaller = BuildInstallerOptions
+  { buildOutFile :: FilePath
+  } deriving Show
+
+windowsInstallerMain :: WindowsInstaller -> IO ()
+windowsInstallerMain (MakeNSI m) = makeNullsoftScripts m
+windowsInstallerMain (BuildInstaller BuildInstallerOptions{..}) = makeWindowsInstaller buildOutFile
 
 daedalusShortcut :: [Attrib]
 daedalusShortcut =
@@ -160,7 +178,8 @@ writeInstallerNSIS outName ver theInstallDir clusterName = do
                 file [] "*genesis*.json"
                 file [] "launcher-config.yaml"
                 file [Recursive] "dlls\\"
-                file [Recursive] "..\\release\\win32-x64\\Daedalus-win32-x64\\"
+                file [Recursive] "electron\\"
+                file [Recursive] "frontend\\"
 
                 mapM_ unsafeInject
                     [ "liteFirewall::AddRule \"$INSTDIR\\cardano-node.exe\" \"Cardano Node\""
@@ -197,39 +216,19 @@ writeInstallerNSIS outName ver theInstallDir clusterName = do
 getInstallDir :: Cluster -> FilePath -> IO FilePath
 getInstallDir cluster dhallDir = fromText . installDirectory <$> getInstallerConfig dhallDir Win64 cluster
 
-packageFrontend :: IO ()
-packageFrontend = do
-    export "NODE_ENV" "production"
-    shells "npm run package -- --icon installers/icons/64x64" empty
+makeNullsoftScripts :: MakeNSI -> IO ()
+makeNullsoftScripts MakeNSIOptions{..} = do
+    theInstallDir <- getInstallDir nsiNetwork nsiDhallDir
 
-gcl :: Options -> GenerateCardanoLauncher
-gcl Options{..} = GenerateCardanoLauncher
-  { genOS = Win64
-  , genCluster = oCluster
-  , genAppName = oAppName
-  , genInputDir = "./dhall"
-  , genOutputDir = "."
-  }
+    echo "Writing uninstaller.nsi"
+    writeUninstallerNSIS nsiFullVersion theInstallDir
 
-makeWindowsInstaller :: Options -> IO ()
-makeWindowsInstaller opts@Options{..}  = do
-    generateOSClusterConfigs (gcl opts)
+    echo "Writing daedalus.nsi"
+    writeInstallerNSIS nsiInstallerFilename nsiFullVersion theInstallDir nsiNetwork
 
-    fetchCardanoSL "."
-    printCardanoBuildInfo "."
-
-    fullVersion <- getDaedalusVersion "../package.json"
-    ver <- getCardanoVersion
-
-    echo "Packaging frontend"
-    exportBuildVars opts ver
-    packageFrontend
-
-    let fullName = packageFileName Win64 oCluster fullVersion oBackend ver oBuildJob
-
+makeWindowsInstaller :: FilePath -> IO ()
+makeWindowsInstaller fullName = do
     printf ("Building: "%fp%"\n") fullName
-
-    theInstallDir <- getInstallDir oCluster "./dhall"
 
     echo "Adding permissions manifest to cardano-launcher.exe"
     procs "C:\\Program Files (x86)\\Windows Kits\\8.1\\bin\\x64\\mt.exe" ["-manifest", "cardano-launcher.exe.manifest", "-outputresource:cardano-launcher.exe;#1"] mempty
@@ -237,60 +236,13 @@ makeWindowsInstaller opts@Options{..}  = do
     signFile "cardano-launcher.exe"
     signFile "cardano-node.exe"
 
-    echo "Writing uninstaller.nsi"
-    writeUninstallerNSIS fullVersion theInstallDir
+    echo "Generating and signing uninstaller"
     makeNSIS "uninstaller.nsi"
     signUninstaller
-
-    echo "Writing daedalus.nsi"
-    writeInstallerNSIS fullName fullVersion theInstallDir oCluster
-
-    catNSI
-
-    windowsRemoveDirectoryRecursive "../release/win32-x64/Daedalus-win32-x64/resources/app/installers/.stack-work"
 
     echo "Generating NSIS installer"
     makeNSIS "daedalus.nsi"
     signFile fullName
-
--- | For debugging
-catNSI :: IO ()
-catNSI = do
-  readFile "daedalus.nsi" >>= putStr
-  IO.hFlush IO.stdout
-
--- | Download and extract the cardano-sl windows build.
-fetchCardanoSL :: FilePath -> IO ()
-fetchCardanoSL dst = do
-  bs <- downloadCardanoSL "../cardano-sl-src.json"
-  let opts = [Zip.OptDestination (encodeString dst), Zip.OptVerbose]
-  Zip.extractFilesFromArchive opts (Zip.toArchive bs)
-
-printCardanoBuildInfo :: MonadIO io => FilePath -> io ()
-printCardanoBuildInfo dst = do
-  let buildInfo what f = do
-        let f' = dst </> f
-        e <- testfile f'
-        when e $ do
-          echo what
-          stdout (input f')
-  buildInfo "cardano-sl build-id:" "build-id"
-  buildInfo "cardano-sl commit-id:" "commit-id"
-  buildInfo "cardano-sl ci-url:" "ci-url"
-
--- | Run cardano-node --version to get a version string.
--- Because this is Windows, all necessary DLLs for cardano-node.exe
--- need to be in the PATH.
-getCardanoVersion :: IO Text
-getCardanoVersion = withDir "DLLs" (grepCardanoVersion run)
-  where
-    run = inproc (tt prog) ["--version"] empty
-    prog = ".." </> "cardano-node.exe"
-
-grepCardanoVersion :: Shell Line -> IO Text
-grepCardanoVersion = fmap T.stripEnd . strict . sed versionPattern
-  where
-    versionPattern = text "cardano-node-" *> plus (noneOf ", ") <* star dot
 
 getTempDir :: MonadIO io => io FilePath
 getTempDir = need "TEMP" >>= \case
