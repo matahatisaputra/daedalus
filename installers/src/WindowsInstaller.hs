@@ -1,7 +1,5 @@
-{-# LANGUAGE RecordWildCards, LambdaCase #-}
-{-# LANGUAGE OverloadedStrings   #-}
 module WindowsInstaller
-    ( main
+    ( makeWindowsInstaller
     , writeInstallerNSIS
     ) where
 
@@ -213,8 +211,8 @@ gcl Options{..} = GenerateCardanoLauncher
   , genOutputDir = "."
   }
 
-main :: Options -> IO ()
-main opts@Options{..}  = do
+makeWindowsInstaller :: Options -> IO ()
+makeWindowsInstaller opts@Options{..}  = do
     generateOSClusterConfigs (gcl opts)
 
     fetchCardanoSL "."

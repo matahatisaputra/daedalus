@@ -16,7 +16,6 @@ library
                    , Config
                    , WindowsInstaller
                    , MacOSPackageSigning
-                   , MacInstaller
                    , RewriteLibs
                    , AppVeyor
                    , Util
@@ -53,6 +52,38 @@ library
 
 executable generate-launcher-config
   main-is:             generate-launcher-config.hs
+  hs-source-dirs:      exe
+  build-depends:       base
+                     , bytestring
+                     , containers
+                     , directory
+                     , foldl
+                     , filepath
+                     , optparse-applicative
+                     , optparse-generic
+                     , optional-args
+                     , split
+                     , system-filepath
+                     , temporary
+                     , text
+                     , turtle
+                     , universum
+                     , daedalus-installer
+
+  default-language:    Haskell2010
+  ghc-options:         -threaded -rtsopts
+                       -Wextra -Wno-unused-do-bind
+                       -fno-warn-orphans
+                       -with-rtsopts=-N
+                       -O2
+
+  default-extensions: NoImplicitPrelude
+                    , OverloadedStrings
+                    , LambdaCase
+                    , RecordWildCards
+
+executable make-windows-installer
+  main-is:             make-windows-installer.hs
   hs-source-dirs:      exe
   build-depends:       base
                      , bytestring
@@ -134,7 +165,6 @@ executable darwin-rewrite-libs
                      , turtle
                      , universum
                      , daedalus-installer
-
   default-language:    Haskell2010
   ghc-options:         -threaded -rtsopts
                        -Wextra -Wno-unused-do-bind

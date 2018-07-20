@@ -13,7 +13,10 @@ import           Universum                 hiding (FilePath, toText, (<>))
 
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
+import           System.IO                 (BufferMode (NoBuffering),
+                                            hSetBuffering)
 import           Turtle                    hiding (e, prefix, stdout)
+import           Turtle.Line               (unsafeTextToLine)
 
 import           Types
 
@@ -49,7 +52,13 @@ deleteCertificate SigningConfig{..} = run' "security" args
 
 -- | Creates a new installer package with signature added.
 signMacOSInstaller :: FilePath -> FilePath -> IO ()
-signMacOSInstaller = signInstaller signingConfig
+signMacOSInstaller inPkg outPkg = do
+  hSetBuffering stdout NoBuffering
+
+  signInstaller signingConfig inPkg outPkg
+  checkSignature outPkg
+
+  printf ("Generated "%fp%"\n") outPkg
 
 signInstaller :: SigningConfig -> FilePath -> FilePath -> IO ()
 signInstaller SigningConfig{..} src dst =

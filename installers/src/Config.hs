@@ -13,7 +13,6 @@ module Config
   , OS(..), Cluster(..), Config(..), Backend(..)
   , optReadLower, argReadLower
   , Options(..), optionsParser
-  , Command(..), commandParser
   , GenerateCardanoLauncher(..), generateCardanoLauncherParser
   , dfp
   , getInstallerConfig
@@ -72,18 +71,6 @@ optReadLower = opt (diagReadCaseInsensitive . T.unpack)
 argReadLower :: (Bounded a, Enum a, Read a, Show a) => ArgName -> Optional HelpMessage -> Parser a
 argReadLower = arg (diagReadCaseInsensitive . T.unpack)
 
-data Command
-  = GenConfig
-    { cfDhallRoot   :: Text
-    , cfOutdir      :: FilePath
-    }
-  | CheckConfigs
-    { cfDhallRoot   :: Text
-    }
-  | GenInstaller
-  | Appveyor
-  deriving (Eq, Show)
-
 data Options = Options
   { oBackend        :: Backend
   , oBuildJob       :: Maybe BuildJob
@@ -93,21 +80,6 @@ data Options = Options
   , oOutputDir      :: FilePath
   , oTestInstaller  :: TestInstaller
   } deriving Show
-
-commandParser :: Parser Command
-commandParser = (fromMaybe GenInstaller <$>) . optional $
-  subcommandGroup "Subcommands:"
-  [ ("config",        "Build configs for an OS / cluster  (see: --os, --cluster top-level options)",
-      GenConfig
-      <$> argText "INDIR"  "Directory containing Dhall config files"
-      <*> (fromText <$> argText "OUTDIR" "Target directory for generated YAML config files"))
-  , ("check-configs", "Verify all Dhall-defined config components",
-      CheckConfigs
-      <$> argText "DIR" "Directory containing Dhall config files")
-  , ("installer",  "Build an installer",
-      pure GenInstaller)
-  , ("appveyor",   "do an appveroy build", pure Appveyor)
-  ]
 
 data GenerateCardanoLauncher = GenerateCardanoLauncher
   { genOS           :: OS
@@ -125,17 +97,15 @@ generateCardanoLauncherParser = GenerateCardanoLauncher
   <*> optPath "input-dir" 'i' "Directory containing Dhall config files"
   <*> optPath "output-dir" 'o' "Target directory for generated YAML config files"
 
-optionsParser :: OS -> Parser Options
-optionsParser detectedOS = Options
+optionsParser :: OS -> Maybe BuildJob -> Parser Options
+optionsParser os buildJob = Options
   <$> backendOptionParser
-  <*> (optional      $
-      (BuildJob     <$> optText "build-job"           'b' "CI Build Job/ID"))
-  <*> (fromMaybe detectedOS <$> optional osParser)
-  <*> (fromMaybe Mainnet    <$> optional clusterParser)
-  <*> (fromMaybe "daedalus" <$> optional appNameParser)
-  <*>                   optPath "out-dir"             'o' "Installer output directory"
-  <*> (testInstaller
-                    <$> switch  "test-installer"      't' "Test installers after building")
+  <*> pure buildJob
+  <*> pure os
+  <*> clusterParser
+  <*> appNameParser
+  <*> optPath "out-dir" 'o' "Installer output directory"
+  <*> (testInstaller <$> switch  "test-installer" 't' "Test installers after building")
 
 osParser :: Parser OS
 osParser = optReadLower "os" 's' "One of: linux64 macos64 win64"
