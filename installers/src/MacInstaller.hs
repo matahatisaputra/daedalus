@@ -124,6 +124,7 @@ npmPackage DarwinConfig{..} = do
   mktree "release"
   echo "~~~ Installing nodejs dependencies..."
   procs "npm" ["install"] empty
+  export "NODE_ENV" "production"
   echo "~~~ Running electron packager script..."
   export "NODE_ENV" "production"
   procs "npm" ["run", "package", "--", "--name", dcAppName ] empty
@@ -170,7 +171,7 @@ makeComponentRoot Options{..} appRoot darwinConfig@DarwinConfig{..} = do
   de <- testdir (dir </> "Frontend")
   unless de $ mv (dir </> (fromString $ T.unpack $ dcAppName)) (dir </> "Frontend")
   run "chmod" ["+x", tt (dir </> "Frontend")]
-  void $ writeLauncherFile dir darwinConfig
+  void $ writeLauncherFile dir oCluster darwinConfig
 
 
 makeInstaller :: Options -> DarwinConfig -> FilePath -> FilePath -> IO FilePath
@@ -213,8 +214,8 @@ readCardanoVersionFile bridge = prefix <$> handle handler (readTextFile verFile)
     handler e | isDoesNotExistError e = pure ""
               | otherwise = throwM e
 
-writeLauncherFile :: FilePath -> DarwinConfig -> IO FilePath
-writeLauncherFile dir DarwinConfig{..} = do
+writeLauncherFile :: FilePath -> Cluster -> DarwinConfig -> IO FilePath
+writeLauncherFile dir cluster DarwinConfig{..} = do
   writeTextFile path $ T.unlines contents
   run "chmod" ["+x", tt path]
   pure path
@@ -226,5 +227,7 @@ writeLauncherFile dir DarwinConfig{..} = do
       , "cd \"$(dirname \"$0\")\""
       , "mkdir -p \"" <> dataDir <> "/Secrets-1.0\""
       , "mkdir -p \"" <> dataDir <> "/Logs/pub\""
+      , "export NETWORK=" <> clusterNetwork cluster
+      , "export REPORT_URL=\"fixme\""
       , "./cardano-launcher"
       ]

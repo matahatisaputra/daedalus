@@ -29,4 +29,8 @@ with (import (localLib.fetchNixPkgs + "/pkgs/top-level/release-lib.nix") {
   mainnet.linuxInstaller = [ "x86_64-linux" ];
   staging.linuxInstaller = [ "x86_64-linux" ];
   testnet.linuxInstaller = [ "x86_64-linux" ];
+
+  mainnet.macOSPackage = [ "x86_64-darwin" ];
+  staging.macOSPackage = [ "x86_64-darwin" ];
+  testnet.macOSPackage = [ "x86_64-darwin" ];
 }

@@ -77,6 +77,12 @@ let
         inherit self pkgs;
       };
       linuxInstaller = localLib.wrapPackage buildNum self.linuxInstaller';
+
+      # macOS Installer Package
+      macOSPackage' = self.callPackage ./installers/macos-pkg.nix {
+        inherit (pkgs.darwin) binutils;
+      };
+      macOSPackage = localLib.wrapPackage buildNum self.macOSPackage';
     };
   in self.overrideScope packages));
 
