@@ -161,6 +161,7 @@ let
       utillinux
       gnused
       gnutar
+      gawk
       bzip2
       gzip
       xz
