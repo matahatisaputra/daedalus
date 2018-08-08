@@ -12,6 +12,7 @@ module Types
   , Cluster(..)
   , Config(..), configFilename
   , ConfigRequest(..)
+  , SigningResult(..)
 
   , AppName(..)
   , BuildJob(..)
@@ -55,6 +56,11 @@ data Cluster
   = Mainnet
   | Staging
   | Testnet
+  deriving (Bounded, Enum, Eq, Read, Show)
+
+data SigningResult
+  = SignedOK
+  | NotSigned
   deriving (Bounded, Enum, Eq, Read, Show)
 
 data Config

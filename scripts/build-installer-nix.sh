@@ -26,6 +26,7 @@ do
   if [ -n "${BUILDKITE_JOB_ID:-}" ]; then
     upload_artifacts_public csl-daedalus/daedalus*.bin
     nix-build -A daedalus.cfg  --argstr cluster "${cluster}"
+    ## DEVOPS-994:  stop uploading unsigned installers, once we start to sign them on Linux.
     for cf in launcher-config wallet-topology
     do cp result/etc/$cf.yaml  "$cf-${cluster}.linux.yaml"
        upload_artifacts "$cf-${cluster}.linux.yaml"
